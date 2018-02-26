@@ -23,6 +23,9 @@ class cell(object):
 		self.value = 1
 	def set_free(self):
 		self.value = 0
+	def set_target(self):
+		self.value = 2
+
 
 class frame_manager(QThread):
 	update_grid = pyqtSignal()
@@ -51,7 +54,6 @@ class eight_neighbor_grid(QWidget):
 		self.num_rows = num_rows # height of the board
 		self.pyqt_app = pyqt_app # allows this class to call parent functions
 		self.init_ui() # initialize a bunch of class instance variables
-		self.bots = []
 
 	def init_cells(self):
 		self.cells = []
@@ -62,21 +64,20 @@ class eight_neighbor_grid(QWidget):
 				row.append(cur_cell)
 			self.cells.append(row)
 
-		self.init_blocked_cells()
-
-	def init_blocked_cells(self,generate=True,grid_name="grid"):
-		self.blocked_cells = []
-
 	def init_ui(self):
 		# initialize ui elements
-		self.worker_threads = []
 		self.grid_line_color = [0,0,0]
-		self.free_color = [46,139,87]#,255,255]
+		self.free_color = [128,128,128]
 		self.occupied_color = [0,128,255]
 		self.blocked_cell_color = [0,0,0]
+		self.target_color=[124,252,0]
 		self.last_direction = "right"
 		self.current_location = None
 		self.game_over = False
+
+		self.cells_visited=[]
+		self.tail_length=10
+
 		self.init_cells()
 
 		self.frame_updater = frame_manager(self)
@@ -112,21 +113,24 @@ class eight_neighbor_grid(QWidget):
 			for x in range(self.num_cols):
 				cell_state = self.get_cell_state(x,y)
 
-				if cell_state==1:
+				if cell_state==1: # player in current location
 					qp.setBrush(QColor(self.occupied_color[0],self.occupied_color[1],self.occupied_color[2]))
 					self.current_location = [x,y]
 
-				if [x,y] in self.blocked_cells:
-					qp.setBrush(QColor(self.blocked_cell_color[0],self.blocked_cell_color[1],self.blocked_cell_color[2]))
+				elif cell_state==2: # target in current location
+					qp.setBrush(QColor(self.target_color[0],self.target_color[1],self.target_color[2]))
+
+				elif cell_state==0: # current location is free
+					qp.setBrush(QColor(self.free_color[0],self.free_color[1],self.free_color[2]))
+
+				if [x,y] in self.cells_visited[:self.tail_length]:
+					qp.setBrush(QColor(self.occupied_color[0],self.occupied_color[1],self.occupied_color[2]))
 
 				x_start = x*self.horizontal_step
 				y_start = y*self.vertical_step
 				qp.drawRect(x_start,y_start,self.horizontal_step,self.vertical_step)
 
 				self.cells[y][x].render_coordinate = [x_start,y_start]
-
-				if cell_state==1 or [x,y] in self.blocked_cells:
-					qp.setBrush(QColor(self.free_color[0],self.free_color[1],self.free_color[2]))
 
 	def get_cell_state(self,x,y):
 		return self.cells[y][x].state()
@@ -139,11 +143,16 @@ class eight_neighbor_grid(QWidget):
 		return [-1,-1]
 
 	def get_start_cell(self):
-		x,y = self.get_open_cell()
-		if x==-1 and y==-1:
-			print("ERROR: get_start_cell() could not find open cell")
-			return
+		x=random.randint(1,self.num_cols-1)
+		y=random.randint(1,self.num_rows-1)
 		self.cells[y][x].set_occupied()
+
+	def get_target_cell(self):
+		while True:
+			x=random.randint(1,self.num_cols-1)
+			y=random.randint(1,self.num_rows-1)
+			if self.get_cell_state(x,y)==0: break
+		self.cells[y][x].set_target()	
 
 	def get_cell_attrib(self,attrib=1):
 		for y in range(self.num_rows):
@@ -172,8 +181,7 @@ class eight_neighbor_grid(QWidget):
 		if y==-1 or y==self.num_rows: 
 			return [cur_x,cur_y]
 
-		if [x,y] in self.blocked_cells:
-			return [cur_x,cur_y]
+		self.cells_visited=[[x,y]]+self.cells_visited
 
 		self.cells[cur_y][cur_x].set_free()
 		self.cells[y][x].set_occupied()
@@ -210,12 +218,14 @@ class main_window(QWidget):
 
 	def __init__(self,parent=None):
 		super(main_window,self).__init__()
-		self.num_cols = 35
-		self.num_rows = 25
+		self.num_cols = 50
+		self.num_rows = 30
 		self.init_ui()
 		self.start_character()
+		self.start_target()
 
 	def init_ui(self):
+		self.setWindowTitle('Snake')
 		self.menu_selection_sound = QSound("resources/sounds/341695__projectsu012__coins-1.wav")
 		self.dead_sound = QSound("resources/sounds/350985__cabled-mess__lose-c-02.wav")
 		self.win_sound = QSound("resources/sounds/126422__cabeeno-rossley__level-up.wav")
@@ -256,6 +266,9 @@ class main_window(QWidget):
 	def start_character(self):
 		self.grid.get_start_cell()
 
+	def start_target(self):
+		self.grid.get_target_cell()
+
 	def keyPressEvent(self,e):
 		if e.isAutoRepeat(): return
 
@@ -266,8 +279,7 @@ class main_window(QWidget):
 		if e.key() == Qt.Key_Down: action="down"
 
 		if action!=None:
-			new_location = self.grid.move(action)
-
+			new_direction = self.grid.move(action)
 
 	def game_over(self):
 		user_health = self.grid.user_health
