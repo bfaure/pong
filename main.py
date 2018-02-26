@@ -35,7 +35,7 @@ class frame_manager(QThread):
 		self.connect(self,SIGNAL("update_grid()"),parent.repaint)
 
 	def run(self):
-		refresh_period = 0.2
+		refresh_period = 0.1
 		while True:
 			if self.stop: break
 			self.update_grid.emit()
@@ -71,12 +71,15 @@ class eight_neighbor_grid(QWidget):
 		self.occupied_color = [0,128,255]
 		self.blocked_cell_color = [0,0,0]
 		self.target_color=[124,252,0]
-		self.last_direction = "right"
+		self.last_direction = None
 		self.current_location = None
 		self.game_over = False
 
+
+		self.points_to_win=20
+		self.points=0
 		self.cells_visited=[]
-		self.tail_length=10
+		self.tail_length=0
 
 		self.init_cells()
 
@@ -95,6 +98,43 @@ class eight_neighbor_grid(QWidget):
 			self.game_over = False
 			self.end_game.emit()
 
+	def move_player(self):
+		x,y=self.current_location
+		self.cells[y][x].set_free()
+		if self.last_direction=="right":
+			x+=1
+		if self.last_direction=="left":
+			x+=-1
+		if self.last_direction=="up":
+			y+=-1
+		if self.last_direction=="down":
+			y+=1
+
+		if x<0 or x>=self.num_cols:
+			return self.new_game()
+		if y<0 or y>=self.num_rows:
+			return self.new_game()
+		if [x,y] in self.cells_visited[:self.tail_length]:
+			return self.new_game()
+
+		self.current_location=[x,y]
+		if self.cells[y][x].value==2:
+			self.tail_length+=4
+			self.get_target_cell()
+			self.points+=1
+			self.parent.setWindowTitle('Snake - Score: %d'%self.points)
+		self.cells[y][x].set_occupied()
+		self.cells_visited=[[x,y]]+self.cells_visited
+
+	def new_game(self):
+		self.cells_visited=[]
+		self.last_direction=None
+		self.tail_length=0
+		self.points=0
+		self.init_cells()
+		self.get_start_cell()
+		self.get_target_cell()
+
 	def drawWidget(self,qp):
 		size = self.size()
 		height = size.height()
@@ -108,6 +148,9 @@ class eight_neighbor_grid(QWidget):
 
 		qp.setBrush(QColor(self.free_color[0],self.free_color[1],self.free_color[2]))
 		qp.setPen(Qt.NoPen)
+
+		if self.last_direction!=None:
+			self.move_player()
 
 		for y in range(self.num_rows):
 			for x in range(self.num_cols):
@@ -145,6 +188,7 @@ class eight_neighbor_grid(QWidget):
 	def get_start_cell(self):
 		x=random.randint(1,self.num_cols-1)
 		y=random.randint(1,self.num_rows-1)
+		self.current_location=[x,y]
 		self.cells[y][x].set_occupied()
 
 	def get_target_cell(self):
@@ -154,17 +198,10 @@ class eight_neighbor_grid(QWidget):
 			if self.get_cell_state(x,y)==0: break
 		self.cells[y][x].set_target()	
 
-	def get_cell_attrib(self,attrib=1):
-		for y in range(self.num_rows):
-			for x in range(self.num_cols):
-				if self.cells[y][x].state()==attrib:
-					return [x,y]
-		return [-1,-1]
-
 	def move(self,action="none"):
 		self.last_direction = action
 
-		cur_x,cur_y = self.get_cell_attrib(attrib=1)
+		cur_x,cur_y = self.current_location
 		if cur_x==-1 and cur_y==-1:
 			print("ERROR: move() could not find current cell!")
 			return [-1,-1]
@@ -176,10 +213,18 @@ class eight_neighbor_grid(QWidget):
 		if action=="up": y+=-1
 		if action=="down": y+=1
 
-		if x==-1 or x==self.num_cols: 
-			return [cur_x,cur_y]
-		if y==-1 or y==self.num_rows: 
-			return [cur_x,cur_y]
+		if x<0 or x>=self.num_cols:
+			return self.new_game()
+		if y<0 or y>=self.num_rows:
+			return self.new_game()
+		if [x,y] in self.cells_visited[:self.tail_length]:
+			return self.new_game()
+
+		if self.cells[y][x].value==2:
+			self.tail_length+=4
+			self.get_target_cell()
+			self.points+=1
+			self.parent.setWindowTitle('Snake - Score: %d'%self.points)
 
 		self.cells_visited=[[x,y]]+self.cells_visited
 
@@ -187,31 +232,6 @@ class eight_neighbor_grid(QWidget):
 		self.cells[y][x].set_occupied()
 		self.current_location = [x,y]
 		return [x,y]
-
-	def get_opposite_direction(self,direction):
-		if direction=="left": return "right"
-		if direction=="right": return "left"
-		if direction=="up": return "down"
-		if direction=="down": return "up"
-		return "none"
-
-	def set_current_location(self,location_descriptor):
-		if location_descriptor=="opposite":
-			for y in range(self.num_rows):
-				for x in range(self.num_cols):
-					if self.cells[y][x].state()==1:
-						self.cells[y][x].set_free()
-			self.current_location = [self.num_cols-1,self.num_rows-1]
-			self.cells[self.num_rows-1][self.num_cols-1].set_occupied()
-			return [self.num_cols-1,self.num_rows-1]
-		if location_descriptor=="standard":
-			for y in range(self.num_rows):
-				for x in range(self.num_cols):
-					if self.cells[y][x].state()==1:
-						self.cells[y][x].set_free()
-			self.current_location = [0,0]
-			self.cells[0][0].set_occupied()
-			return [0,0]
 
 
 class main_window(QWidget):
@@ -282,24 +302,7 @@ class main_window(QWidget):
 			new_direction = self.grid.move(action)
 
 	def game_over(self):
-		user_health = self.grid.user_health
-		if user_health<=0:
-			self.dead_sound.play()
-			self.grid.set_current_location("opposite")
-			pyqt_app.processEvents()
-			if self.opponent_ip!=None:
-				self.grid.opponent_move(0,0)
-				sender = sender_thread()
-				sender.host = self.opponent_ip
-				sender.message = "restart| "
-				sender.is_done = False 
-				sender.start()
-				self.sender_threads.append(sender)
-			self.grid.init_blocked_cells()
-			self.grid.setEnabled(False)
-			self.set_health(10)
-		else:
-			self.set_health(user_health)
+		print ("game over")
 
 def main():
 	global pyqt_app
