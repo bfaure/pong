@@ -145,7 +145,7 @@ class eight_neighbor_grid(QWidget):
 		grid_width = horizontal_step*self.num_cols
 
 		qp.setBrush(QColor(self.free_color[0],self.free_color[1],self.free_color[2]))
-		#qp.setPen(Qt.NoPen)
+		qp.setPen(QColor(self.free_color[0],self.free_color[1],self.free_color[2]))
 
 		if self.last_direction!=None:
 			self.move_player()
@@ -223,7 +223,7 @@ class main_window(QWidget):
 
 	def __init__(self,parent=None):
 		super(main_window,self).__init__()
-		self.num_cols = 45
+		self.num_cols = 40
 		self.num_rows = 25
 		self.init_ui()
 		self.start_character()
