@@ -76,6 +76,7 @@ class eight_neighbor_grid(QWidget):
 		self.game_over = False
 
 
+		self.hi_score=0
 		self.points_to_win=20
 		self.points=0
 		self.cells_visited=[]
@@ -119,18 +120,22 @@ class eight_neighbor_grid(QWidget):
 
 		self.current_location=[x,y]
 		if self.cells[y][x].value==2:
+			self.parent.win_sound.play()
 			self.tail_length+=4
 			self.get_target_cell()
 			self.points+=1
-			self.parent.setWindowTitle('Snake - Score: %d'%self.points)
+			self.parent.setWindowTitle('Snake - Score: %d - High: %d'%(self.points,self.hi_score))
 		self.cells[y][x].set_occupied()
 		self.cells_visited=[[x,y]]+self.cells_visited
 
 	def new_game(self):
+		self.parent.dead_sound.play()
 		self.cells_visited=[]
 		self.last_direction=None
 		self.tail_length=0
+		if self.points>self.hi_score: self.hi_score=self.points
 		self.points=0
+		self.parent.setWindowTitle('Snake - Score: %d - High: %d'%(self.points,self.hi_score))
 		self.init_cells()
 		self.get_start_cell()
 		self.get_target_cell()
@@ -195,7 +200,8 @@ class eight_neighbor_grid(QWidget):
 		while True:
 			x=random.randint(1,self.num_cols-1)
 			y=random.randint(1,self.num_rows-1)
-			if self.get_cell_state(x,y)==0: break
+			if self.get_cell_state(x,y)==0 and [x,y] not in self.cells_visited[:self.tail_length]:
+				break
 		self.cells[y][x].set_target()	
 
 	def move(self,action="none"):
@@ -221,10 +227,11 @@ class eight_neighbor_grid(QWidget):
 			return self.new_game()
 
 		if self.cells[y][x].value==2:
+			self.parent.win_sound.play()
 			self.tail_length+=4
 			self.get_target_cell()
 			self.points+=1
-			self.parent.setWindowTitle('Snake - Score: %d'%self.points)
+			self.parent.setWindowTitle('Snake - Score: %d - High: %d'%(self.points,self.hi_score))
 
 		self.cells_visited=[[x,y]]+self.cells_visited
 
@@ -245,7 +252,7 @@ class main_window(QWidget):
 		self.start_target()
 
 	def init_ui(self):
-		self.setWindowTitle('Snake')
+		self.setWindowTitle('Snake - Score: 0 - High: 0')
 		self.menu_selection_sound = QSound("resources/sounds/341695__projectsu012__coins-1.wav")
 		self.dead_sound = QSound("resources/sounds/350985__cabled-mess__lose-c-02.wav")
 		self.win_sound = QSound("resources/sounds/126422__cabeeno-rossley__level-up.wav")
