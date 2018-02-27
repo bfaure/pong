@@ -4,16 +4,13 @@ import os
 import sys
 import time
 import random
-from copy import deepcopy, copy
 from time import sleep
 
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-pyqt_app = ""
-
-class cell(object):
+class cell:
 	def __init__(self):
 		self.value = 0
 	def state(self):
@@ -41,15 +38,11 @@ class frame_manager(QThread):
 			if not self.pause: self.update_grid.emit()
 			sleep(refresh_period)
 
-# UI element (widget) that represents the interface with the grid
 class eight_neighbor_grid(QWidget):
-	end_game = pyqtSignal()
 
 	def __init__(self,num_cols,num_rows,parent):
-		# constructor, pass the number of cols and rows
 		super(eight_neighbor_grid,self).__init__()
 		self.parent	  = parent # allows this class to manipulate parent
-		self.connect(self,SIGNAL("end_game()"),parent.game_over)
 		self.num_cols = num_cols # width of the board
 		self.num_rows = num_rows # height of the board
 		self.init_ui() # initialize a bunch of class instance variables
@@ -89,6 +82,7 @@ class eight_neighbor_grid(QWidget):
 		qp.end()
 
 	def new_game(self):
+		print('Game Over! Your score was %d'%self.points)
 		self.parent.dead_sound.play()
 		self.cells_visited=[]
 		self.last_direction=None
@@ -248,11 +242,8 @@ class main_window(QWidget):
 		elif action!=None:
 			new_direction = self.grid.move(action)
 
-	def game_over(self):
-		print ("game over")
 
 def main():
-	global pyqt_app
 	pyqt_app = QApplication(sys.argv)
 	_ = main_window()
 	sys.exit(pyqt_app.exec_())
