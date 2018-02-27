@@ -1,5 +1,4 @@
 # python 2.7
-from __future__ import print_function
 import os
 import sys
 import time
@@ -10,7 +9,7 @@ from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-class cell:
+class Cell:
 	def __init__(self):
 		self.value = 0
 	def state(self):
@@ -23,7 +22,7 @@ class cell:
 		self.value = 2
 
 
-class frame_manager(QThread):
+class FrameManager(QThread):
 	update_grid = pyqtSignal()
 
 	def __init__(self,parent=None):
@@ -38,10 +37,10 @@ class frame_manager(QThread):
 			if not self.pause: self.update_grid.emit()
 			sleep(refresh_period)
 
-class eight_neighbor_grid(QWidget):
+class Grid(QWidget):
 
 	def __init__(self,num_cols,num_rows,parent):
-		super(eight_neighbor_grid,self).__init__()
+		super(Grid,self).__init__()
 		self.parent	  = parent # allows this class to manipulate parent
 		self.num_cols = num_cols # width of the board
 		self.num_rows = num_rows # height of the board
@@ -52,28 +51,27 @@ class eight_neighbor_grid(QWidget):
 		for _ in range(self.num_rows):
 			row = []
 			for _ in range(self.num_cols):
-				cur_cell = cell()
+				cur_cell = Cell()
 				row.append(cur_cell)
 			self.cells.append(row)
 
 	def init_ui(self):
-		# initialize ui elements
-		self.free_color = [128,128,128]
-		self.occupied_color = [0,128,255]
-		self.target_color=[124,252,0]
-		self.last_direction = None
-		self.current_location = None
+		self.free_color = [128,128,128] # color of open cells
+		self.occupied_color = [0,128,255] # color of snake
+		self.target_color=[124,252,0] # color of targets
+		self.last_direction = None # one of ['left','right','up','down']
+		self.current_location = None # [x,y] coords
 
-		self.hi_score=0
-		self.points=0
-		self.cells_visited=[]
-		self.tail_length=0
+		self.hi_score=0 # highest score of current session
+		self.points=0 # current score
+		self.cells_visited=[] # path of visited locations [x,y]'s
+		self.tail_length=0 # based on current score
 
-		self.init_cells()
+		self.init_cells() # create all cell objects
 
-		self.frame_updater = frame_manager(self)
-		self.frame_updater.stop=False
-		self.frame_updater.start()
+		self.frame_updater = FrameManager(self) # to handle refresh rate
+		self.frame_updater.stop=False 
+		self.frame_updater.start() 
 
 	def paintEvent(self,e):
 		qp = QPainter()
@@ -82,7 +80,7 @@ class eight_neighbor_grid(QWidget):
 		qp.end()
 
 	def new_game(self):
-		print('Game Over! Your score was %d'%self.points)
+		print 'Game Over! Your score was %d'%self.points
 		self.parent.dead_sound.play()
 		self.cells_visited=[]
 		self.last_direction=None
@@ -95,9 +93,9 @@ class eight_neighbor_grid(QWidget):
 		self.get_target_cell()
 
 	def drawWidget(self,qp):
-		size = self.size() # size of current window
+		size   = self.size() # size of current window
 		height = size.height()
-		width = size.width()
+		width  = size.width()
 
 		horizontal_step = int(round(width/self.num_cols))
 		vertical_step   = int(round(height/self.num_rows))
@@ -152,15 +150,13 @@ class eight_neighbor_grid(QWidget):
 		self.last_direction=action
 		x,y=self.current_location
 		self.cells[y][x].set_free()
-		if self.last_direction=="right":   x+=1
-		elif self.last_direction=="left":  x+=-1
-		elif self.last_direction=="up":    y+=-1
-		elif self.last_direction=="down":  y+=1
+		if self.last_direction=="right":  x+=1
+		elif self.last_direction=="left": x+=-1
+		elif self.last_direction=="up":   y+=-1
+		elif self.last_direction=="down": y+=1
 
-		if x<0 or x>=self.num_cols:
-			return self.new_game()
-		if y<0 or y>=self.num_rows:
-			return self.new_game()
+		if x<0 or x>=self.num_cols: return self.new_game()
+		if y<0 or y>=self.num_rows: return self.new_game()
 		if [x,y] in self.cells_visited[:self.tail_length]:
 			return self.new_game()
 
@@ -176,30 +172,31 @@ class eight_neighbor_grid(QWidget):
 		self.cells_visited=self.cells_visited[:self.tail_length]
 
 
-class main_window(QWidget):
+class MainWindow(QWidget):
 
 	def __init__(self,parent=None):
-		super(main_window,self).__init__()
+		super(MainWindow,self).__init__()
 		self.num_cols = 40
 		self.num_rows = 25
+		self.key_dict={Qt.Key_Left:'left',Qt.Key_Right:'right',Qt.Key_Up:'up',Qt.Key_Down:'down',Qt.Key_P:'pause'}
 		self.init_ui() # create grid
 		self.grid.get_start_cell() # initialize player location
 		self.grid.get_target_cell() # initialize first target
 
 	def init_ui(self):
 		self.setWindowTitle('Snake - Score: 0 - High: 0')
-		self.dead_sound = QSound("resources/sounds/350985__cabled-mess__lose-c-02.wav")
+		self.dead_sound  = QSound("resources/sounds/350985__cabled-mess__lose-c-02.wav")
 		self.score_sound = QSound("resources/sounds/126422__cabeeno-rossley__level-up.wav")
 		
-		self.min_width = 625
+		self.min_width  = 625
 		self.min_height = 425
 
 		self.layout = QVBoxLayout(self)
-		self.grid   = eight_neighbor_grid(num_cols=self.num_cols,num_rows=self.num_rows,parent=self)
+		self.grid   = Grid(num_cols=self.num_cols,num_rows=self.num_rows,parent=self)
 
 		if sys.platform in ["apple","Apple","darwin","Darwin"]:
 			self.min_height = 470
-			self.min_width = 675
+			self.min_width  = 675
 
 		if sys.platform in ["linux","linux32","win32"]: 
 			self.layout.addSpacing(25)
@@ -226,26 +223,21 @@ class main_window(QWidget):
 	def keyPressEvent(self,e):
 		if e.isAutoRepeat(): return
 
-		action = None
-		if e.key() == Qt.Key_Left: action="left"
-		if e.key() == Qt.Key_Right: action="right"
-		if e.key() == Qt.Key_Up: action="up"
-		if e.key() == Qt.Key_Down: action="down"
-		if e.key() == Qt.Key_P: action="pause"
+		try:    action=self.key_dict[e.key()]
+		except: return
 
 		if action=="pause":
 			if self.grid.frame_updater.pause==True:
 				self.grid.frame_updater.pause=False
 			else:
 				self.grid.frame_updater.pause=True
-
-		elif action!=None:
-			new_direction = self.grid.move(action)
+		else:
+			self.grid.move(action)
 
 
 def main():
 	pyqt_app = QApplication(sys.argv)
-	_ = main_window()
+	_ = MainWindow()
 	sys.exit(pyqt_app.exec_())
 
 if __name__ == '__main__':
