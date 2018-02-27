@@ -185,6 +185,7 @@ class MainWindow(QWidget):
 
 	def init_ui(self):
 		self.setWindowTitle('Snake - Score: 0 - High: 0')
+		self.setWindowIcon(QIcon('resources/icons/snake_icon.png'))
 		self.dead_sound  = QSound("resources/sounds/350985__cabled-mess__lose-c-02.wav")
 		self.score_sound = QSound("resources/sounds/126422__cabeeno-rossley__level-up.wav")
 		
