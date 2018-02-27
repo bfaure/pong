@@ -31,13 +31,14 @@ class frame_manager(QThread):
 
 	def __init__(self,parent=None):
 		QThread.__init__(self,parent)
+		self.pause=False
 		self.connect(self,SIGNAL("update_grid()"),parent.repaint)
 
 	def run(self):
 		refresh_period = 0.08
 		while True:
 			if self.stop: break
-			self.update_grid.emit()
+			if not self.pause: self.update_grid.emit()
 			sleep(refresh_period)
 
 # UI element (widget) that represents the interface with the grid
@@ -281,8 +282,15 @@ class main_window(QWidget):
 		if e.key() == Qt.Key_Right: action="right"
 		if e.key() == Qt.Key_Up: action="up"
 		if e.key() == Qt.Key_Down: action="down"
+		if e.key() == Qt.Key_P: action="pause"
 
-		if action!=None:
+		if action=="pause":
+			if self.grid.frame_updater.pause==True:
+				self.grid.frame_updater.pause=False
+			else:
+				self.grid.frame_updater.pause=True
+
+		elif action!=None:
 			new_direction = self.grid.move(action)
 
 	def game_over(self):
