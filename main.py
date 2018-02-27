@@ -16,7 +16,6 @@ pyqt_app = ""
 class cell(object):
 	def __init__(self):
 		self.value = 0
-		self.render_coordinate = [None,None]
 	def state(self):
 		return self.value
 	def set_occupied(self):
@@ -35,7 +34,7 @@ class frame_manager(QThread):
 		self.connect(self,SIGNAL("update_grid()"),parent.repaint)
 
 	def run(self):
-		refresh_period = 0.1
+		refresh_period = 0.08
 		while True:
 			if self.stop: break
 			self.update_grid.emit()
@@ -73,7 +72,6 @@ class eight_neighbor_grid(QWidget):
 		self.target_color=[124,252,0]
 		self.last_direction = None
 		self.current_location = None
-		self.game_over = False
 
 
 		self.hi_score=0
@@ -93,11 +91,6 @@ class eight_neighbor_grid(QWidget):
 		qp.begin(self)
 		self.drawWidget(qp)
 		qp.end()
-
-		if self.game_over: 
-			self.user_health+=-1
-			self.game_over = False
-			self.end_game.emit()
 
 	def move_player(self):
 		x,y=self.current_location
@@ -141,54 +134,38 @@ class eight_neighbor_grid(QWidget):
 		self.get_target_cell()
 
 	def drawWidget(self,qp):
-		size = self.size()
+		size = self.size() # size of current window
 		height = size.height()
 		width = size.width()
 
-		self.horizontal_step = int(round(width/self.num_cols))
-		self.vertical_step = int(round(height/self.num_rows))
+		horizontal_step = int(round(width/self.num_cols))
+		vertical_step = int(round(height/self.num_rows))
 
-		grid_height = self.vertical_step*self.num_rows
-		grid_width = self.horizontal_step*self.num_cols
+		grid_height = vertical_step*self.num_rows
+		grid_width = horizontal_step*self.num_cols
 
 		qp.setBrush(QColor(self.free_color[0],self.free_color[1],self.free_color[2]))
-		qp.setPen(Qt.NoPen)
+		#qp.setPen(Qt.NoPen)
 
 		if self.last_direction!=None:
 			self.move_player()
 
 		for y in range(self.num_rows):
 			for x in range(self.num_cols):
-				cell_state = self.get_cell_state(x,y)
+				cell_state=self.cells[y][x].state()
 
-				if cell_state==1: # player in current location
+				if cell_state==1 or [x,y] in self.cells_visited[:self.tail_length]: # player in current location
 					qp.setBrush(QColor(self.occupied_color[0],self.occupied_color[1],self.occupied_color[2]))
-					self.current_location = [x,y]
 
 				elif cell_state==2: # target in current location
 					qp.setBrush(QColor(self.target_color[0],self.target_color[1],self.target_color[2]))
 
-				elif cell_state==0: # current location is free
+				else: # current location is free
 					qp.setBrush(QColor(self.free_color[0],self.free_color[1],self.free_color[2]))
 
-				if [x,y] in self.cells_visited[:self.tail_length]:
-					qp.setBrush(QColor(self.occupied_color[0],self.occupied_color[1],self.occupied_color[2]))
-
-				x_start = x*self.horizontal_step
-				y_start = y*self.vertical_step
-				qp.drawRect(x_start,y_start,self.horizontal_step,self.vertical_step)
-
-				self.cells[y][x].render_coordinate = [x_start,y_start]
-
-	def get_cell_state(self,x,y):
-		return self.cells[y][x].state()
-
-	def get_open_cell(self):
-		for y in range(self.num_rows):
-			for x in range(self.num_cols):
-				if self.cells[y][x].state()==0:
-					return [x,y]
-		return [-1,-1]
+				x_start = x*horizontal_step
+				y_start = y*vertical_step
+				qp.drawRect(x_start,y_start,horizontal_step,vertical_step)
 
 	def get_start_cell(self):
 		x=random.randint(1,self.num_cols-1)
@@ -200,7 +177,7 @@ class eight_neighbor_grid(QWidget):
 		while True:
 			x=random.randint(1,self.num_cols-1)
 			y=random.randint(1,self.num_rows-1)
-			if self.get_cell_state(x,y)==0 and [x,y] not in self.cells_visited[:self.tail_length]:
+			if self.cells[y][x].state()==0 and [x,y] not in self.cells_visited[:self.tail_length]:
 				break
 		self.cells[y][x].set_target()	
 
@@ -234,6 +211,7 @@ class eight_neighbor_grid(QWidget):
 			self.parent.setWindowTitle('Snake - Score: %d - High: %d'%(self.points,self.hi_score))
 
 		self.cells_visited=[[x,y]]+self.cells_visited
+		self.cells_visited=self.cells_visited[:self.tail_length]
 
 		self.cells[cur_y][cur_x].set_free()
 		self.cells[y][x].set_occupied()
@@ -245,8 +223,8 @@ class main_window(QWidget):
 
 	def __init__(self,parent=None):
 		super(main_window,self).__init__()
-		self.num_cols = 50
-		self.num_rows = 30
+		self.num_cols = 45
+		self.num_rows = 25
 		self.init_ui()
 		self.start_character()
 		self.start_target()
@@ -279,8 +257,7 @@ class main_window(QWidget):
 		file_menu = self.toolbar.addMenu("File")
 		file_menu.addAction("Quit",self.quit,QKeySequence("Ctrl+Q"))
 
-		self.setFixedWidth(self.min_width)
-		self.setFixedHeight(self.min_height)
+		self.resize(self.min_width,self.min_height)
 		self.show()
 
 	def quit(self):
