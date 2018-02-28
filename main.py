@@ -234,7 +234,7 @@ class MainWindow(QWidget):
 				self.grid.frame_updater.pause=False
 			else:
 				self.grid.frame_updater.pause=True
-		else:
+		elif not self.grid.frame_updater.pause:
 			self.grid.move(action)
 
 
