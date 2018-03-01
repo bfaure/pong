@@ -235,6 +235,10 @@ class MainWindow(QWidget):
 		else:
 			self.grid.move(action)
 
+	def resizeEvent(self,e):
+		size   = self.size() # size of current window
+		width  = size.width()
+		self.toolbar.setFixedWidth(width) # resize toolbar to fit new window size
 
 def main():
 	pyqt_app = QApplication(sys.argv)
