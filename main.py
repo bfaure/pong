@@ -56,8 +56,7 @@ class Grid(QWidget):
 			self.cells.append(row)
 
 	def init_ui(self):
-		#self.free_color = [128,128,128] # color of open cells
-		self.free_color = [0,0,0] # color of open cells
+		self.free_color = [128,128,128] # color of open cells
 		self.occupied_color = [0,128,255] # color of snake
 		self.target_color=[124,252,0] # color of targets
 		self.last_direction = None # one of ['left','right','up','down']
@@ -238,8 +237,7 @@ class MainWindow(QWidget):
 			self.grid.move(action)
 
 	def resizeEvent(self,e):
-		size   = self.size() # size of current window
-		width  = size.width()
+		width=self.size().width() # width of current window
 		self.toolbar.setFixedWidth(width) # resize toolbar to fit new window size
 
 def main():
