@@ -56,7 +56,8 @@ class Grid(QWidget):
 			self.cells.append(row)
 
 	def init_ui(self):
-		self.free_color = [128,128,128] # color of open cells
+		#self.free_color = [128,128,128] # color of open cells
+		self.free_color = [0,0,0] # color of open cells
 		self.occupied_color = [0,128,255] # color of snake
 		self.target_color=[124,252,0] # color of targets
 		self.last_direction = None # one of ['left','right','up','down']
@@ -196,8 +197,9 @@ class MainWindow(QWidget):
 		self.grid   = Grid(num_cols=self.num_cols,num_rows=self.num_rows,parent=self)
 
 		if sys.platform in ["apple","Apple","darwin","Darwin"]:
+			# dimensions look well on my laptop
 			self.min_height = 470
-			self.min_width  = 675
+			self.min_width  = 642
 
 		if sys.platform in ["linux","linux32","win32"]: 
 			self.layout.addSpacing(25)
@@ -232,7 +234,7 @@ class MainWindow(QWidget):
 				self.grid.frame_updater.pause=False
 			else:
 				self.grid.frame_updater.pause=True
-		else:
+		elif not self.grid.frame_updater.pause:
 			self.grid.move(action)
 
 	def resizeEvent(self,e):
